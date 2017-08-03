@@ -3,7 +3,10 @@
  * hosted at http://github.com/thirdpin/pastilda
  *
  * Copyright (C) 2016  Third Pin LLC
- * Written by Anastasiia Lazareva <a.lazareva@thirdpin.ru>
+ *
+ * Written by:
+ *  Anastasiia Lazareva <a.lazareva@thirdpin.ru>
+ *	Dmitrii Lisin <mrlisdim@ya.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,31 +22,57 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "app.h"
-#include "stdio.h"
-using namespace Application;
+#include <cstdio>
 
-#ifdef DEBUG
-    #define DEBUG_PRINT(x) printf(x)
-#else
-    #define DEBUG_PRINT(x) do {} while (0)
-#endif
+#include <FastDelegate.h>
+#include <libopencmsis/core_cm3.h>
+
+#include "app.h"
+
+using namespace std::placeholders;
+
+using namespace Application;
+using namespace Keys;
+
+namespace fastdeligate = fd;
 
 App *app_pointer;
 
 App::App()
 {
 	app_pointer = this;
-	clock_setup();
-	systick_init();
 
-	_leds_api = new LEDS_api();
-	delay_ms(1000);
+	scb_set_priority_grouping(SCB_AIRCR_PRIGROUP_GROUP2_SUB8);
 
-	usb_dispatcher = new USB_dispatcher();
+	_fs = new FileSystem();
+
+	_usb_composite = new USB_composite(UsbMemoryControlParams {	_fs->msd_blocks(),
+																_fs->msd_read,
+																_fs->msd_write });
+
+	Logic::TildaLogic::SpecialPoints specialMenuPoints {
+		{
+			"Format flash",
+			std::strlen("Format flash\0"),
+			fd::MakeDelegate(_fs, &FileSystem::format_to_FAT12)
+		}
+	};
+	_tildaLogic = new Logic::TildaLogic(_usb_composite->get_usb_deque(),
+								 	 	specialMenuPoints);
+
+	_usb_host = new USB_host(host_keyboard_callback);
+	// TODO: fix it
+	delay_ms(6000);  // wait usb device initializing
+	_usb_composite->init_hid_interrupt();
 }
+
 void App::process()
 {
-	_leds_api->toggle();
-	usb_dispatcher->process();
+	_leds_api.toggle();
+	_usb_host->poll();
+}
+
+void App::host_keyboard_callback(uint8_t *data, uint8_t len)
+{
+	app_pointer->_tildaLogic->process(data, len);
 }

@@ -3,7 +3,10 @@
  * hosted at http://github.com/thirdpin/pastilda
  *
  * Copyright (C) 2016  Third Pin LLC
- * Written by Anastasiia Lazareva <a.lazareva@thirdpin.ru>
+ *
+ * Written by:
+ *  Anastasiia Lazareva <a.lazareva@thirdpin.ru>
+ *	Dmitrii Lisin <mrlisdim@ya.ru>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +26,17 @@
 #define APP_H
 
 #include <string.h>
+
 #include "clock.h"
-#include "gpio_ext.h"
-#include "systick_ext.h"
 #include "leds.h"
-#include "usb_dispatcher.h"
-#include "spi_ext.h"
+#include "usbd_composite.h"
+#include "usbh_host.h"
+#include "file_system.h"
+#include "menu/TildaLogic.h"
+#include "keepass_reader.h"
 
 using namespace LEDS_API;
-using namespace GPIO_CPP_Extension;
-using namespace SPI_CPP_Extension;
+using namespace KeepAss;
 
 namespace Application
 {
@@ -42,9 +46,14 @@ namespace Application
 		App();
 		void process();
 
+		static void host_keyboard_callback(uint8_t *data, uint8_t len);
+
 	private:
-		LEDS_api *_leds_api;
-		USB_dispatcher *usb_dispatcher;
+		LEDS_api _leds_api;
+		FileSystem *_fs;
+		USB_composite *_usb_composite;
+		USB_host *_usb_host;
+		Logic::TildaLogic* _tildaLogic;
 	};
 }
 #endif
